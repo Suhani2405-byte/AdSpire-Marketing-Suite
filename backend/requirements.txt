@@ -1,0 +1,13 @@
+Flask==3.1.3
+flask-cors==6.0.5
+Flask-SQLAlchemy==3.1.1
+SQLAlchemy==2.0.51
+google-genai==2.20.0
+google-auth==2.57.0
+huggingface_hub==1.27.0
+pillow==12.3.0
+python-dotenv==1.2.2
+requests==2.34.2
+pydantic==2.13.4
+gunicorn==23.0.0
+Werkzeug==3.1.8
