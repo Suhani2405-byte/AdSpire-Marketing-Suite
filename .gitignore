@@ -1,0 +1,34 @@
+# Environment Variables & Secrets
+.env
+*.env
+backend/.env
+
+# Python Virtual Environments & Cache
+venv/
+backend/venv/
+__pycache__/
+backend/__pycache__/
+backend/*/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Node.js & Frontend dependencies
+node_modules/
+frontend/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Database & SQLite files
+*.sqlite
+*.db
+backend/*.db
+backend/*.sqlite
+
+# Logs & Temporary Files
+*.log
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
