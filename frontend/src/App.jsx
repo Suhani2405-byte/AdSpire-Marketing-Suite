@@ -38,7 +38,7 @@ import {
 } from "lucide-react";
 import "./App.css";
 
-const API_BASE = "http://127.0.0.1:5000/api";
+const API_BASE = window.location.port === "5173" ? "http://127.0.0.1:5000/api" : "/api";
 
 export default function App() {
   // Navigation State: 'overview' | 'studio' | 'visuals' | 'budget' | 'library'
