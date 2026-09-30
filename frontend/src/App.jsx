@@ -123,8 +123,11 @@ export default function App() {
 
       if (res.data && res.data.campaign_content) {
         setCampaignResult(res.data.campaign_content);
-        if (res.data.campaign_content.image_prompt) {
-          setVisualPrompt(res.data.campaign_content.image_prompt);
+        const imgPrompt = res.data.campaign_content.image_prompt;
+        if (imgPrompt) {
+          setVisualPrompt(imgPrompt);
+          // Auto-synthesize visual for mockups in background
+          handleGenerateVisual(imgPrompt);
         }
         triggerToast("✨ Campaign Strategy & Creative Assets Ready!");
         fetchSavedCampaigns();
@@ -142,8 +145,9 @@ export default function App() {
     }
   };
 
-  const handleGenerateVisual = async () => {
-    if (!visualPrompt.trim()) {
+  const handleGenerateVisual = async (customPrompt = null) => {
+    const promptToUse = (typeof customPrompt === "string" ? customPrompt : visualPrompt || "").trim();
+    if (!promptToUse) {
       triggerToast("Please enter a visual description.");
       return;
     }
@@ -151,7 +155,7 @@ export default function App() {
     setGeneratingVisual(true);
     try {
       const res = await axios.post(`${API_BASE}/image/generate`, {
-        prompt: visualPrompt,
+        prompt: promptToUse,
         aspect_ratio: aspectRatio,
         style: visualStyle,
       });
@@ -927,13 +931,31 @@ export default function App() {
                               </div>
 
                               <div className="ig-media-slot">
-                                {renderedVisual ? (
-                                  <img src={renderedVisual} alt="Campaign Visual" className="ig-media-img" />
+                                {generatingVisual ? (
+                                  <div className="media-placeholder-state">
+                                    <RefreshCw size={26} className="spin-animation text-purple-400" />
+                                    <span>Synthesizing Ad Creative...</span>
+                                  </div>
+                                ) : renderedVisual ? (
+                                  <img
+                                    src={renderedVisual}
+                                    alt="Campaign Visual"
+                                    className="ig-media-img"
+                                    onError={(e) => {
+                                      e.target.src = "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80";
+                                    }}
+                                  />
                                 ) : (
                                   <div className="media-placeholder-state">
-                                    <Sparkles size={28} />
+                                    <Sparkles size={28} className="text-purple-400" />
                                     <span>Creative Visual Asset</span>
-                                    <small>{campaignResult.campaign_title}</small>
+                                    <button
+                                      className="sample-run-btn"
+                                      style={{ marginTop: "8px", fontSize: "0.75rem", padding: "4px 12px" }}
+                                      onClick={() => handleGenerateVisual(campaignResult?.image_prompt || visualPrompt)}
+                                    >
+                                      🎨 Generate Ad Photo
+                                    </button>
                                   </div>
                                 )}
                               </div>
@@ -978,11 +1000,29 @@ export default function App() {
                         {mockupType === "tiktok" && (
                           <div className="phone-device-frame tiktok-reel-frame">
                             <div className="tt-player-screen">
-                              {renderedVisual ? (
-                                <img src={renderedVisual} alt="TikTok Background" className="tt-media-video-img" />
+                              {generatingVisual ? (
+                                <div className="tt-video-placeholder">
+                                  <RefreshCw size={32} className="spin-animation text-pink-400" />
+                                </div>
+                              ) : renderedVisual ? (
+                                <img
+                                  src={renderedVisual}
+                                  alt="TikTok Background"
+                                  className="tt-media-video-img"
+                                  onError={(e) => {
+                                    e.target.src = "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80";
+                                  }}
+                                />
                               ) : (
                                 <div className="tt-video-placeholder">
                                   <Play size={40} className="text-pink-400" />
+                                  <button
+                                    className="sample-run-btn"
+                                    style={{ marginTop: "12px", fontSize: "0.75rem", padding: "4px 12px" }}
+                                    onClick={() => handleGenerateVisual(campaignResult?.image_prompt || visualPrompt)}
+                                  >
+                                    🎨 Generate Visual
+                                  </button>
                                 </div>
                               )}
 
@@ -1034,12 +1074,31 @@ export default function App() {
                               </p>
 
                               <div className="li-banner-slot">
-                                {renderedVisual ? (
-                                  <img src={renderedVisual} alt="Banner" className="li-banner-img" />
+                                {generatingVisual ? (
+                                  <div className="li-placeholder-box">
+                                    <RefreshCw size={24} className="spin-animation text-blue-400" />
+                                    <p style={{ marginTop: "6px", fontSize: "0.75rem", color: "#94a3b8" }}>Rendering banner...</p>
+                                  </div>
+                                ) : renderedVisual ? (
+                                  <img
+                                    src={renderedVisual}
+                                    alt="Banner"
+                                    className="li-banner-img"
+                                    onError={(e) => {
+                                      e.target.src = "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80";
+                                    }}
+                                  />
                                 ) : (
                                   <div className="li-placeholder-box">
                                     <h4>{campaignResult.campaign_title}</h4>
                                     <p>{campaignResult.tagline}</p>
+                                    <button
+                                      className="sample-run-btn"
+                                      style={{ marginTop: "8px", fontSize: "0.75rem", padding: "4px 12px" }}
+                                      onClick={() => handleGenerateVisual(campaignResult?.image_prompt || visualPrompt)}
+                                    >
+                                      🎨 Generate Banner
+                                    </button>
                                   </div>
                                 )}
                               </div>
@@ -1183,7 +1242,14 @@ export default function App() {
                 ) : renderedVisual ? (
                   <div className="visual-render-preview-wrapper">
                     <div className="visual-image-frame">
-                      <img src={renderedVisual} alt="Creative visual asset" className="rendered-asset-img" />
+                      <img
+                        src={renderedVisual}
+                        alt="Creative visual asset"
+                        className="rendered-asset-img"
+                        onError={(e) => {
+                          e.target.src = "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80";
+                        }}
+                      />
                       <div className="visual-download-overlay">
                         <a
                           href={renderedVisual}
@@ -1401,6 +1467,11 @@ export default function App() {
                       if (typeof item.campaign_content === "object") {
                         setCampaignResult(item.campaign_content);
                         setProductName(item.product_name || "Campaign");
+                        if (item.image_url) {
+                          setRenderedVisual(item.image_url);
+                        } else if (item.campaign_content.image_prompt) {
+                          setVisualPrompt(item.campaign_content.image_prompt);
+                        }
                         setActiveTab("studio");
                         triggerToast(`Loaded: ${item.product_name}`);
                       }

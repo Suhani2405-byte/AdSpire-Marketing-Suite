@@ -1,9 +1,11 @@
+import os
 import json
 from datetime import datetime
 from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime
 from sqlalchemy.orm import declarative_base, sessionmaker
 
-DATABASE_URL = "sqlite:///marketing_campaign.db"
+DB_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "marketing_campaign.db"))
+DATABASE_URL = f"sqlite:///{DB_PATH}"
 
 engine = create_engine(
     DATABASE_URL,
