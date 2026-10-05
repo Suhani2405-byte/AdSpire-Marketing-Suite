@@ -941,9 +941,6 @@ export default function App() {
                                     src={renderedVisual}
                                     alt="Campaign Visual"
                                     className="ig-media-img"
-                                    onError={(e) => {
-                                      e.target.src = "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80";
-                                    }}
                                   />
                                 ) : (
                                   <div className="media-placeholder-state">
@@ -1009,9 +1006,6 @@ export default function App() {
                                   src={renderedVisual}
                                   alt="TikTok Background"
                                   className="tt-media-video-img"
-                                  onError={(e) => {
-                                    e.target.src = "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80";
-                                  }}
                                 />
                               ) : (
                                 <div className="tt-video-placeholder">
@@ -1084,9 +1078,6 @@ export default function App() {
                                     src={renderedVisual}
                                     alt="Banner"
                                     className="li-banner-img"
-                                    onError={(e) => {
-                                      e.target.src = "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80";
-                                    }}
                                   />
                                 ) : (
                                   <div className="li-placeholder-box">
@@ -1246,9 +1237,6 @@ export default function App() {
                         src={renderedVisual}
                         alt="Creative visual asset"
                         className="rendered-asset-img"
-                        onError={(e) => {
-                          e.target.src = "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80";
-                        }}
                       />
                       <div className="visual-download-overlay">
                         <a
