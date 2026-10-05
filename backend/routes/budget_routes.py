@@ -4,6 +4,12 @@ budget_bp = Blueprint("budget", __name__)
 
 # Industry benchmark multipliers
 INDUSTRY_BENCHMARKS = {
+    "Consumer Electronics & D2C": {
+        "cpc": {"Meta": 0.85, "Google": 1.20, "LinkedIn": 4.50, "TikTok": 0.65, "Email": 0.15, "Influencer": 2.10},
+        "ctr": {"Meta": 2.1, "Google": 3.8, "LinkedIn": 1.1, "TikTok": 2.9, "Email": 5.2, "Influencer": 4.0},
+        "conv_rate": 3.2,
+        "avg_order_value": 75.0
+    },
     "E-commerce & D2C": {
         "cpc": {"Meta": 0.85, "Google": 1.20, "LinkedIn": 4.50, "TikTok": 0.65, "Email": 0.15, "Influencer": 2.10},
         "ctr": {"Meta": 2.1, "Google": 3.8, "LinkedIn": 1.1, "TikTok": 2.9, "Email": 5.2, "Influencer": 4.0},
@@ -28,12 +34,6 @@ INDUSTRY_BENCHMARKS = {
         "conv_rate": 3.0,
         "avg_order_value": 75.0
     },
-    "Education & EdTech": {
-        "cpc": {"Meta": 1.10, "Google": 2.20, "LinkedIn": 5.10, "TikTok": 0.80, "Email": 0.18, "Influencer": 2.50},
-        "ctr": {"Meta": 1.9, "Google": 3.1, "LinkedIn": 1.6, "TikTok": 2.4, "Email": 4.8, "Influencer": 3.2},
-        "conv_rate": 2.5,
-        "avg_order_value": 180.0
-    },
     "Default": {
         "cpc": {"Meta": 0.90, "Google": 1.50, "LinkedIn": 4.80, "TikTok": 0.70, "Email": 0.15, "Influencer": 2.00},
         "ctr": {"Meta": 2.0, "Google": 3.2, "LinkedIn": 1.3, "TikTok": 2.6, "Email": 5.0, "Influencer": 3.8},
@@ -47,6 +47,7 @@ GOAL_WEIGHTS = {
     "Brand Awareness": {"Meta": 35, "TikTok": 30, "Influencer": 20, "Google": 10, "LinkedIn": 5, "Email": 0},
     "Lead Generation": {"Google": 35, "LinkedIn": 30, "Meta": 20, "Email": 10, "TikTok": 5, "Influencer": 0},
     "Sales": {"Meta": 35, "Google": 35, "Email": 15, "TikTok": 10, "Influencer": 5, "LinkedIn": 0},
+    "Sales & Conversions": {"Meta": 35, "Google": 35, "Email": 15, "TikTok": 10, "Influencer": 5, "LinkedIn": 0},
     "Product Promotion": {"Meta": 35, "TikTok": 25, "Google": 20, "Influencer": 15, "Email": 5, "LinkedIn": 0},
     "Engagement": {"TikTok": 40, "Meta": 35, "Influencer": 15, "Google": 5, "LinkedIn": 5, "Email": 0}
 }
@@ -54,17 +55,21 @@ GOAL_WEIGHTS = {
 
 @budget_bp.route("/plan", methods=["POST"])
 def calculate_budget_plan():
-    """Calculate dynamic ROI & budget allocation model."""
+    """Calculate dynamic ROI & budget allocation model reflecting duration, budget, and goal."""
     try:
         data = request.get_json() or {}
         total_budget = float(data.get("total_budget", 1500) or 1500)
         goal = data.get("goal", "Sales")
-        industry = data.get("industry", "E-commerce & D2C")
-        duration_days = int(data.get("duration_days", 30) or 30)
+        industry = data.get("industry", "Consumer Electronics & D2C")
+        duration_days = max(1, int(data.get("duration_days", 30) or 30))
 
         # Get benchmark metrics
         benchmarks = INDUSTRY_BENCHMARKS.get(industry, INDUSTRY_BENCHMARKS["Default"])
         weights = GOAL_WEIGHTS.get(goal, GOAL_WEIGHTS["Sales"])
+
+        # Algorithmic pacing multiplier: Sustained campaigns allow for pixel training and compounding retargeting
+        # 7 days: ~0.88x (ad fatigue/rush), 30 days: ~1.0x (baseline), 60 days: ~1.12x, 90 days: ~1.22x
+        duration_factor = 0.85 + (min(duration_days, 90) / 90.0) * 0.35
 
         channels = []
         total_reach = 0
@@ -78,10 +83,9 @@ def calculate_budget_plan():
             allocated_amount = (total_budget * pct) / 100.0
             cpc = benchmarks["cpc"].get(channel, 1.0)
             ctr = benchmarks["ctr"].get(channel, 2.0)
-            conv_rate = benchmarks["conv_rate"]
+            conv_rate = benchmarks["conv_rate"] * duration_factor
 
             clicks = int(allocated_amount / cpc) if cpc > 0 else 0
-            # Impressions = Clicks / (CTR / 100)
             impressions = int(clicks / (ctr / 100.0)) if ctr > 0 else 0
             conversions = int(clicks * (conv_rate / 100.0))
 
@@ -93,6 +97,7 @@ def calculate_budget_plan():
                 "name": channel,
                 "percentage": pct,
                 "budget": round(allocated_amount, 2),
+                "daily_budget": round(allocated_amount / duration_days, 2),
                 "cpc": round(cpc, 2),
                 "ctr": f"{ctr}%",
                 "estimated_impressions": impressions,
@@ -106,6 +111,8 @@ def calculate_budget_plan():
         roas = round(projected_revenue / total_budget, 2) if total_budget > 0 else 1.0
         cpa = round(total_budget / total_conversions, 2) if total_conversions > 0 else 0
         net_profit = round(projected_revenue - total_budget, 2)
+        daily_spend = round(total_budget / duration_days, 2)
+        daily_conversions = round(total_conversions / duration_days, 1)
 
         return jsonify({
             "success": True,
@@ -117,20 +124,22 @@ def calculate_budget_plan():
             },
             "summary": {
                 "total_budget": total_budget,
+                "duration_days": duration_days,
+                "daily_spend": daily_spend,
+                "daily_conversions": daily_conversions,
                 "total_reach": total_reach,
                 "total_clicks": total_clicks,
                 "total_conversions": total_conversions,
                 "avg_cpa": cpa,
                 "projected_revenue": projected_revenue,
                 "projected_roas": f"{roas}x",
-                "net_profit": net_profit,
-                "daily_spend": round(total_budget / duration_days, 2)
+                "net_profit": net_profit
             },
             "channels": channels,
             "strategic_tips": [
+                f"Pacing at ${daily_spend}/day over {duration_days} days to ensure algorithmic bid stabilization.",
                 f"Allocate highest budget ({weights.get('Meta', 35)}%) to high-intent retargeting and lookalike audiences.",
-                f"Test at least 3 creative variants in week 1 to establish baseline CTR above {benchmarks['ctr']['Meta']}%.",
-                f"Implement automated conversion pixel tracking before scaling to minimize CPA."
+                f"Test creative variants in week 1 to establish baseline CTR above {benchmarks['ctr']['Meta']}%."
             ]
         }), 200
 

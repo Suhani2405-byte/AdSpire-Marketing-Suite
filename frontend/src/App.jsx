@@ -1232,11 +1232,22 @@ export default function App() {
                   </div>
                 ) : renderedVisual ? (
                   <div className="visual-render-preview-wrapper">
-                    <div className="visual-image-frame">
+                    <div
+                      className="visual-image-frame"
+                      style={{
+                        aspectRatio: aspectRatio === "16:9" ? "16 / 9" : aspectRatio === "9:16" ? "9 / 16" : "1 / 1",
+                        maxWidth: aspectRatio === "9:16" ? "320px" : "480px"
+                      }}
+                    >
                       <img
                         src={renderedVisual}
                         alt="Creative visual asset"
                         className="rendered-asset-img"
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          objectFit: "cover"
+                        }}
                       />
                       <div className="visual-download-overlay">
                         <a
@@ -1350,7 +1361,7 @@ export default function App() {
                 <div className="kpi-card-box purple-border">
                   <span className="kpi-label">PROJECTED ROAS</span>
                   <div className="kpi-number-display">{budgetPlan.summary?.projected_roas}</div>
-                  <span className="kpi-subtext">Return on Ad Spend</span>
+                  <span className="kpi-subtext">Return on Ad Spend ({budgetDuration}d pacing)</span>
                 </div>
 
                 <div className="kpi-card-box green-border">
@@ -1360,15 +1371,15 @@ export default function App() {
                 </div>
 
                 <div className="kpi-card-box blue-border">
-                  <span className="kpi-label">AUDIENCE REACH</span>
-                  <div className="kpi-number-display">{budgetPlan.summary?.total_reach?.toLocaleString()}</div>
-                  <span className="kpi-subtext">Estimated Ad Impressions</span>
+                  <span className="kpi-label">DAILY PACING / RUN RATE</span>
+                  <div className="kpi-number-display">${budgetPlan.summary?.daily_spend?.toLocaleString()}<span style={{ fontSize: "1rem", color: "#94a3b8" }}>/day</span></div>
+                  <span className="kpi-subtext">Over {budgetDuration} Days ({budgetPlan.summary?.daily_conversions || 0} conv/day)</span>
                 </div>
 
                 <div className="kpi-card-box amber-border">
                   <span className="kpi-label">ESTIMATED CONVERSIONS</span>
                   <div className="kpi-number-display">{budgetPlan.summary?.total_conversions?.toLocaleString()}</div>
-                  <span className="kpi-subtext">Avg CPA: ${budgetPlan.summary?.avg_cpa}</span>
+                  <span className="kpi-subtext">Avg CPA: ${budgetPlan.summary?.avg_cpa} • Reach: {budgetPlan.summary?.total_reach?.toLocaleString()}</span>
                 </div>
               </div>
             )}
@@ -1376,7 +1387,7 @@ export default function App() {
             {/* Breakdown Table */}
             <div className="studio-card mt-6">
               <div className="card-top-header">
-                <h3>Channel Allocation & Unit Economics</h3>
+                <h3>Channel Allocation & Unit Economics ({budgetDuration}-Day Schedule)</h3>
               </div>
 
               <div className="table-overflow-wrapper">
@@ -1385,7 +1396,8 @@ export default function App() {
                     <tr>
                       <th>Channel</th>
                       <th>Share</th>
-                      <th>Allocated Budget</th>
+                      <th>Total Budget</th>
+                      <th>Daily Pacing</th>
                       <th>Est. CPC</th>
                       <th>Est. Clicks</th>
                       <th>Est. Conversions</th>
@@ -1397,6 +1409,7 @@ export default function App() {
                         <td><strong>{ch.name}</strong></td>
                         <td><span className="purple-tag">{ch.percentage}%</span></td>
                         <td>${ch.budget}</td>
+                        <td><span className="blue-tag">${ch.daily_budget || (ch.budget / budgetDuration).toFixed(2)}/day</span></td>
                         <td>${ch.cpc}</td>
                         <td>{ch.estimated_clicks?.toLocaleString()}</td>
                         <td><strong className="text-emerald-400">{ch.estimated_conversions?.toLocaleString()}</strong></td>

@@ -1,7 +1,6 @@
 import os
 import io
 import base64
-import random
 import urllib.parse
 import requests
 from dotenv import load_dotenv
@@ -41,18 +40,9 @@ def generate_image(prompt, aspect_ratio="1:1", style="Photorealistic"):
     # Preserve user prompt exactly and append style enhancement
     enhanced_prompt = f"{prompt.strip()}, {modifier}"
 
-    # Aspect ratio dimensions
-    dim_map = {
-        "1:1": (1024, 1024),
-        "16:9": (1024, 576),
-        "9:16": (576, 1024),
-        "4:3": (1024, 768)
-    }
-    width, height = dim_map.get(aspect_ratio, (1024, 1024))
-
     hf_token = os.getenv("HF_TOKEN") or os.getenv("HUGGINGFACE_TOKEN") or os.getenv("HUGGING_FACE_HUB_TOKEN")
 
-    # 1. Hugging Face FLUX.1 (if token configured)
+    # 1. Hugging Face FLUX.1 (if valid token configured)
     if hf_token and HF_AVAILABLE:
         try:
             print(f"[ImageService] Generating with Hugging Face FLUX.1: '{prompt[:50]}...'")
@@ -60,8 +50,8 @@ def generate_image(prompt, aspect_ratio="1:1", style="Photorealistic"):
             image = client.text_to_image(
                 prompt=enhanced_prompt,
                 model="black-forest-labs/FLUX.1-schnell",
-                width=width,
-                height=height
+                width=768,
+                height=768
             )
 
             image_buffer = io.BytesIO()
@@ -79,10 +69,9 @@ def generate_image(prompt, aspect_ratio="1:1", style="Photorealistic"):
         except Exception as e:
             print(f"[ImageService] Hugging Face error: {e}. Falling back to high-speed AI engine...")
 
-    # 2. Pollinations AI Generator (Instant, high-speed, direct prompt fidelity)
-    seed = random.randint(1000, 9999999)
+    # 2. Pollinations AI Generator (Clean zero-auth, high-fidelity generator)
     encoded_prompt = urllib.parse.quote(enhanced_prompt)
-    pollinations_url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width={width}&height={height}&nologo=true&seed={seed}"
+    pollinations_url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?nologo=true"
 
     browser_headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
@@ -90,8 +79,8 @@ def generate_image(prompt, aspect_ratio="1:1", style="Photorealistic"):
     }
 
     try:
-        print(f"[ImageService] Fetching from Pollinations AI (seed={seed})...")
-        response = requests.get(pollinations_url, headers=browser_headers, timeout=12)
+        print(f"[ImageService] Fetching from Pollinations AI...")
+        response = requests.get(pollinations_url, headers=browser_headers, timeout=14)
         content_type = response.headers.get("content-type", "").lower()
 
         if response.status_code == 200 and ("image" in content_type) and len(response.content) > 1000:
@@ -107,7 +96,7 @@ def generate_image(prompt, aspect_ratio="1:1", style="Photorealistic"):
     except Exception as e:
         print(f"[ImageService] Binary fetch error: {e}. Returning direct AI image URL...")
 
-    # If server binary fetch timed out or was blocked, return the direct URL for browser rendering
+    # Direct URL fallback
     return {
         "success": True,
         "image_url": pollinations_url,
