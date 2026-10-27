@@ -119,7 +119,7 @@ export default function App() {
         goal: goal,
         tone: tone,
         industry: industry,
-      });
+      }, { timeout: 90000 });
 
       if (res.data && res.data.campaign_content) {
         setCampaignResult(res.data.campaign_content);
@@ -158,7 +158,7 @@ export default function App() {
         prompt: promptToUse,
         aspect_ratio: aspectRatio,
         style: visualStyle,
-      });
+      }, { timeout: 120000 });
 
       if (res.data && res.data.image_url) {
         setRenderedVisual(res.data.image_url);
@@ -1243,22 +1243,41 @@ export default function App() {
                         src={renderedVisual}
                         alt="Creative visual asset"
                         className="rendered-asset-img"
+                        crossOrigin="anonymous"
                         style={{
                           width: "100%",
                           height: "100%",
-                          objectFit: "cover"
+                          objectFit: "cover",
+                          display: "block"
+                        }}
+                        onError={(e) => {
+                          e.target.style.display = "none";
+                          if (e.target.nextElementSibling) e.target.nextElementSibling.style.display = "flex";
                         }}
                       />
+                      <div style={{ display: "none", alignItems: "center", justifyContent: "center", height: "100%", color: "#94a3b8", fontSize: "0.9rem", flexDirection: "column", gap: "8px" }}>
+                        <span>Image failed to display</span>
+                        <a href={renderedVisual} target="_blank" rel="noreferrer" style={{ color: "#a78bfa", textDecoration: "underline", fontSize: "0.8rem" }}>Open image directly</a>
+                      </div>
                       <div className="visual-download-overlay">
-                        <a
-                          href={renderedVisual}
-                          download={`adspire_creative_${Date.now()}.png`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="download-asset-pill"
-                        >
-                          <Download size={16} /> Download High-Res PNG
-                        </a>
+                        {renderedVisual && renderedVisual.startsWith("data:") ? (
+                          <a
+                            href={renderedVisual}
+                            download={`adspire_creative_${Date.now()}.png`}
+                            className="download-asset-pill"
+                          >
+                            <Download size={16} /> Download High-Res PNG
+                          </a>
+                        ) : (
+                          <a
+                            href={renderedVisual}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="download-asset-pill"
+                          >
+                            <Download size={16} /> Open Full-Res Image
+                          </a>
+                        )}
                       </div>
                     </div>
                     <div className="asset-metadata-bar">
