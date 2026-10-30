@@ -31,7 +31,7 @@ def health_check():
     return jsonify({
         "status": "healthy",
         "service": "MarketAI Backend Engine",
-        "version": "2.0.0",
+        "version": "2.1.0",
         "modules": {
             "campaign_generator": "Online (Gemini 2.5/3.7)",
             "image_studio": "Online (FLUX.1 + Pollinations)",
