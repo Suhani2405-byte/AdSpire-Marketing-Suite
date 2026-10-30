@@ -174,6 +174,26 @@ export default function App() {
     }
   };
 
+  const handleDownloadImage = async (imgUrl) => {
+    if (!imgUrl) return;
+    triggerToast("Downloading high-res image...");
+    try {
+      const response = await fetch(imgUrl);
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = `adspire_asset_${Date.now()}.jpg`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(blobUrl);
+      triggerToast("Image downloaded successfully!");
+    } catch (e) {
+      window.open(imgUrl, "_blank");
+    }
+  };
+
   const fetchBudgetCalculations = async (amount, g, dur) => {
     try {
       const res = await axios.post(`${API_BASE}/budget/plan`, {
@@ -1170,6 +1190,40 @@ export default function App() {
                   </button>
                 )}
 
+                <div className="custom-form-group mt-2">
+                  <label style={{ fontSize: "0.75rem", color: "#94a3b8" }}>QUICK PRODUCT TEMPLATES</label>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginTop: "4px" }}>
+                    {[
+                      "boAt Stone 1200 Bluetooth Speaker",
+                      "Matte-Black Wireless Earbuds",
+                      "Chronograph Luxury Watch",
+                      "Athletic Running Shoes",
+                      "French Designer Perfume Bottle",
+                      "Minimalist Skincare Serum"
+                    ].map((item) => (
+                      <button
+                        key={item}
+                        type="button"
+                        style={{
+                          background: "rgba(255, 255, 255, 0.05)",
+                          border: "1px solid rgba(255, 255, 255, 0.1)",
+                          borderRadius: "9999px",
+                          padding: "4px 10px",
+                          fontSize: "0.75rem",
+                          color: "#cbd5e1",
+                          cursor: "pointer"
+                        }}
+                        onClick={() => {
+                          setVisualPrompt(item);
+                          triggerToast(`Selected: ${item}`);
+                        }}
+                      >
+                        + {item}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 <div className="custom-form-group mt-3">
                   <label>ARTISTIC STYLE PRESET</label>
                   <div className="style-preset-grid">
@@ -1260,24 +1314,25 @@ export default function App() {
                         <a href={renderedVisual} target="_blank" rel="noreferrer" style={{ color: "#a78bfa", textDecoration: "underline", fontSize: "0.8rem" }}>Open image directly</a>
                       </div>
                       <div className="visual-download-overlay">
-                        {renderedVisual && renderedVisual.startsWith("data:") ? (
-                          <a
-                            href={renderedVisual}
-                            download={`adspire_creative_${Date.now()}.png`}
-                            className="download-asset-pill"
-                          >
-                            <Download size={16} /> Download High-Res PNG
-                          </a>
-                        ) : (
-                          <a
-                            href={renderedVisual}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="download-asset-pill"
-                          >
-                            <Download size={16} /> Open Full-Res Image
-                          </a>
-                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleDownloadImage(renderedVisual)}
+                          className="download-asset-pill"
+                          style={{ cursor: "pointer", border: "none" }}
+                        >
+                          <Download size={16} /> Download High-Res
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText(renderedVisual);
+                            triggerToast("Image link copied to clipboard!");
+                          }}
+                          className="download-asset-pill"
+                          style={{ cursor: "pointer", border: "none", marginLeft: "8px", background: "rgba(168, 85, 247, 0.4)" }}
+                        >
+                          <Copy size={16} /> Copy URL
+                        </button>
                       </div>
                     </div>
                     <div className="asset-metadata-bar">

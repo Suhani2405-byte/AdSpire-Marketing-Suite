@@ -17,7 +17,7 @@ def generate_campaign_route():
     try:
         data = request.get_json() or {}
         product_name = data.get("product_name", "").strip() or data.get("productName", "").strip()
-        description = data.get("description", "").strip()
+        description = data.get("description", "").strip() or data.get("product_description", "").strip() or data.get("productDescription", "").strip()
         audience = data.get("target_audience", "").strip() or data.get("audience", "").strip()
         platform = data.get("platform", "Instagram").strip()
         goal = data.get("goal", "Brand Awareness").strip()
