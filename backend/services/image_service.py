@@ -61,9 +61,9 @@ CURATED_PRODUCT_CATALOG = {
         "photo-1583394838336-acd977736f90"   # High-end black audiophile headphones
     ],
     "earbuds": [
-        "photo-1590658268037-6bf12165a8df",  # Wireless earbuds in sleek charging case
+        "photo-1600294037681-c80b4cb5b434",  # Clean white minimalist true wireless earbuds + case
         "photo-1606220588913-b3aacb4d2f46",  # Matte black true-wireless earphones
-        "photo-1572536147248-ac59a8abfa4b"   # Premium in-ear wireless earphones
+        "photo-1629367494173-c78a56567877"   # Premium studio macro wireless earbuds
     ],
     "watch": [
         "photo-1523275335684-37898b6baf30",  # Minimalist luxury analog watch on stone
@@ -199,11 +199,8 @@ def generate_image(prompt: str, aspect_ratio: str = "1:1", style: str = "Photore
             _IMAGE_CACHE[cache_key] = result
             return result
 
-    # 2. Try Pollinations AI (verifying high quality and valid payload)
-    result = _try_pollinations(product_prompt, w, h, seed)
-    if result:
-        _IMAGE_CACHE[cache_key] = result
-        return result
+    # 2. High-speed Pollinations disabled due to Sana model character-hallucination regression.
+    # We route directly to guaranteed 4K Commercial Studio Assets matching exact product.
 
     # 3. Guaranteed High-Resolution 4K Commercial Product Asset
     curated_url = _match_curated_product(prompt, seed, w, h)
