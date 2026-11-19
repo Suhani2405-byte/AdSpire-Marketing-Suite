@@ -24,6 +24,16 @@ services:
       - key: ADMIN_EMAILS
         sync: false                  # comma-separated emails that get the admin role
       - key: HF_TOKEN
-        sync: false                  # optional
+        sync: false                  # optional: HuggingFace AI image generation
       - key: POLLINATIONS_API_KEY
         sync: false                  # optional: removes free-tier watermark / rate limit
+      - key: CLOUDFLARE_ACCOUNT_ID
+        sync: false                  # optional: Cloudflare Workers AI (FLUX images)
+      - key: CLOUDFLARE_API_TOKEN
+        sync: false                  # optional: Cloudflare Workers AI (FLUX images)
+      - key: PEXELS_API_KEY
+        sync: false                  # optional: HD stock photos from Pexels
+      - key: UNSPLASH_ACCESS_KEY
+        sync: false                  # optional: HD stock photos from Unsplash
+      - key: PIXABAY_API_KEY
+        sync: false                  # optional: free stock photos from Pixabay
