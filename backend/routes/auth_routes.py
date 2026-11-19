@@ -36,6 +36,8 @@ def register():
     user = db.create_user(name=name[:120], email=email, password_hash=hash_password(password), role=role)
     if first_admin:
         db.claim_orphan_campaigns(user.id)  # campaigns saved before login existed
+    elif role == "marketer":
+        db.seed_starter_campaigns_for_user(user.id, count=4)
     db.log_activity("register", user_id=user.id, detail=f"New {role} account")
     return jsonify({"success": True, "token": issue_token(user), "user": db.user_to_dict(user)}), 201
 

@@ -271,11 +271,11 @@ def save_campaign(product_name, target_audience, platform, goal, campaign_conten
 
 
 def get_campaigns(user_id=None):
-    """user_id=None returns every campaign (admin / internal use)."""
+    """user_id=None returns every campaign (admin / internal use). Marketer sees only their own."""
     with SessionLocal() as s:
         q = s.query(Campaign, User.name).outerjoin(User, User.id == Campaign.user_id)
         if user_id is not None:
-            q = q.filter((Campaign.user_id == user_id) | (Campaign.source == "demo-seed"))
+            q = q.filter(Campaign.user_id == user_id)
         return [
             dict(_campaign_to_dict(c, include_image=False), owner_name=owner or "Unassigned")
             for c, owner in q.order_by(Campaign.created_at.desc()).all()
@@ -285,9 +285,29 @@ def get_campaigns(user_id=None):
 def get_campaign_by_id(campaign_id, user_id=None):
     with SessionLocal() as s:
         c = s.get(Campaign, campaign_id)
-        if not c or (user_id is not None and c.user_id != user_id and c.source != "demo-seed"):
+        if not c or (user_id is not None and c.user_id != user_id):
             return None
         return _campaign_to_dict(c)
+
+
+def seed_starter_campaigns_for_user(new_user_id, count=4):
+    """Clones a few demo campaigns for newly registered marketers so they have sample data."""
+    with SessionLocal() as s:
+        demos = s.query(Campaign).filter(Campaign.source == "demo-seed").limit(count).all()
+        for d in demos:
+            s.add(Campaign(
+                user_id=new_user_id,
+                product_name=d.product_name,
+                target_audience=d.target_audience,
+                platform=d.platform,
+                goal=d.goal,
+                campaign_content=d.campaign_content,
+                image_url=d.image_url,
+                image_thumb=d.image_thumb,
+                source="starter-template",
+                created_at=_utcnow(),
+            ))
+        s.commit()
 
 
 def update_campaign_image(campaign_id, image_url, user_id=None):
