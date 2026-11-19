@@ -275,7 +275,7 @@ def get_campaigns(user_id=None):
     with SessionLocal() as s:
         q = s.query(Campaign, User.name).outerjoin(User, User.id == Campaign.user_id)
         if user_id is not None:
-            q = q.filter(Campaign.user_id == user_id)
+            q = q.filter((Campaign.user_id == user_id) | (Campaign.source == "demo-seed"))
         return [
             dict(_campaign_to_dict(c, include_image=False), owner_name=owner or "Unassigned")
             for c, owner in q.order_by(Campaign.created_at.desc()).all()
@@ -285,7 +285,7 @@ def get_campaigns(user_id=None):
 def get_campaign_by_id(campaign_id, user_id=None):
     with SessionLocal() as s:
         c = s.get(Campaign, campaign_id)
-        if not c or (user_id is not None and c.user_id != user_id):
+        if not c or (user_id is not None and c.user_id != user_id and c.source != "demo-seed"):
             return None
         return _campaign_to_dict(c)
 

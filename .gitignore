@@ -23,8 +23,8 @@ yarn-error.log*
 # Database & SQLite files
 *.sqlite
 *.db
-backend/*.db
 backend/*.sqlite
+!backend/marketing_campaign.db
 
 # Logs & Temporary Files
 *.log
