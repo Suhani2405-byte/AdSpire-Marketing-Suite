@@ -1,9 +1,10 @@
 import os
 import json
 import re
+import time
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env"))
 
 # Check if google-genai is available
 try:
@@ -136,25 +137,52 @@ def generate_fallback_campaign(product_name, description, audience, platform, go
     }
 
 
-def generate_marketing_campaign(product_name, description, audience, platform="Instagram", goal="Brand Awareness"):
-    """
-    Generate an exhaustive, highly structured, multi-agent AI marketing campaign using Google Gemini.
-    """
-    api_key = os.getenv("GEMINI_API_KEY")
+# Ordered by preference. Several Gemini models regularly return 503 "high demand",
+# so the list ends with lighter models that are usually available.
+TEXT_MODELS = [
+    "gemini-3.8-flash",
+    "gemini-3.5-flash",
+    "gemini-3-flash-preview",
+    "gemini-flash-latest",
+    "gemini-3.1-flash-lite",
+    "gemini-flash-lite-latest",
+]
 
-    if not api_key or not GENAI_AVAILABLE:
-        print("[GeminiService] API key or google-genai not configured. Using high-grade fallback generator.")
-        return generate_fallback_campaign(product_name, description, audience, platform, goal)
+REQUIRED_KEYS = ("campaign_title", "tagline", "ad_copies", "social_posts", "image_prompt")
 
-    prompt = f"""
+# model -> time until which it is skipped after a 503/429/404, so every request
+# doesn't waste seconds re-trying a model that is known to be down right now
+_model_cooldown = {}
+_MODEL_COOLDOWN_SECONDS = 120
+
+
+def _available_models():
+    now = time.time()
+    models = [m for m in TEXT_MODELS if _model_cooldown.get(m, 0) <= now]
+    return models or list(TEXT_MODELS)
+
+
+def _mark_down(model, msg):
+    m = msg.lower()
+    if any(k in m for k in ("503", "unavailable", "429", "resource_exhausted", "404", "not_found")):
+        _model_cooldown[model] = time.time() + _MODEL_COOLDOWN_SECONDS
+
+
+def build_campaign_prompt(product_name, description, audience, platform, goal, tone, industry):
+    return f"""
 You are MarketAI, an elite Autonomous Marketing Director and Chief Marketing Officer.
 Generate a comprehensive, world-class marketing campaign strategy and multi-platform creative suite for the following product:
 
 Product Name: {product_name}
 Description: {description}
-Target Audience: {audience}
+Target Audience: {audience or "Not specified - infer the most likely buyers"}
+Industry: {industry or "Not specified"}
 Primary Platform: {platform}
 Campaign Goal: {goal}
+Brand Tone of Voice: {tone}
+
+Write every piece of copy in the "{tone}" tone and make it specific to this exact product
+(use its real features from the description; do not write generic filler).
 
 You MUST return STRICT JSON adhering precisely to the following structure with zero markdown or conversational text outside the JSON:
 
@@ -227,7 +255,7 @@ You MUST return STRICT JSON adhering precisely to the following structure with z
     {{"day": "Day 6", "channel": "Channel", "content_type": "Type", "idea": "Post idea"}},
     {{"day": "Day 7", "channel": "Channel", "content_type": "Type", "idea": "Post idea"}}
   ],
-  "image_prompt": "A detailed, cinematic image generation prompt describing lighting, composition, style, and subject for text-to-image AI (FLUX.1 / Midjourney style)",
+  "image_prompt": "A 40-70 word text-to-image prompt. It MUST start by literally describing the physical product ({product_name}) - its type, shape, colors, materials - as the clear hero subject, then the setting, lighting and camera angle. No brand logos, no text in the image.",
   "budget_recommendations": {{
     "suggested_split": {{
       "Meta (Instagram & Facebook)": "40%",
@@ -241,33 +269,71 @@ You MUST return STRICT JSON adhering precisely to the following structure with z
 }}
 """
 
-    models_to_try = [
-        "gemini-3.8-flash",
-        "gemini-3.5-flash",
-        "gemini-flash-latest"
-    ]
 
-    for model_name in models_to_try:
+def _template_result(product_name, description, audience, platform, goal, warning):
+    return {
+        "type": "done",
+        "campaign": generate_fallback_campaign(product_name, description, audience, platform, goal),
+        "meta": {"source": "template", "model": None, "warning": warning},
+    }
+
+
+def stream_marketing_campaign(product_name, description, audience, platform="Instagram",
+                              goal="Brand Awareness", tone="Bold & Premium", industry=""):
+    """
+    Generator of progress events for a campaign:
+      {"type": "status", "message": str}
+      {"type": "chunk",  "text": str}          raw JSON text as Gemini writes it
+      {"type": "reset"}                        a model failed mid-stream; discard chunks so far
+      {"type": "done",   "campaign": dict, "meta": {...}}   always the last event
+    """
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key or not GENAI_AVAILABLE:
+        yield _template_result(product_name, description, audience, platform, goal,
+                               "GEMINI_API_KEY is not configured, so a generic template was used.")
+        return
+
+    prompt = build_campaign_prompt(product_name, description, audience, platform, goal, tone, industry)
+    # 60s timeout: an overloaded model that stalls is abandoned and the next one is tried
+    client = genai.Client(api_key=api_key, http_options=types.HttpOptions(timeout=60_000))
+    config = types.GenerateContentConfig(response_mime_type="application/json", temperature=0.7)
+
+    for model_name in _available_models():
+        yield {"type": "status", "message": f"Writing campaign with {model_name}..."}
+        text_parts = []
         try:
-            client = genai.Client(api_key=api_key)
-            print(f"[GeminiService] Calling Gemini model: {model_name}...")
-            response = client.models.generate_content(
-                model=model_name,
-                contents=prompt,
-                config=types.GenerateContentConfig(
-                    response_mime_type="application/json",
-                    temperature=0.7
-                )
-            )
+            print(f"[GeminiService] Streaming from {model_name}...")
+            for chunk in client.models.generate_content_stream(model=model_name, contents=prompt, config=config):
+                piece = chunk.text or ""
+                if piece:
+                    text_parts.append(piece)
+                    yield {"type": "chunk", "text": piece}
 
-            cleaned_json = _clean_json_string(response.text)
-            parsed_data = json.loads(cleaned_json)
-            print(f"[GeminiService] Successfully generated structured campaign via {model_name}!")
-            return parsed_data
-
+            parsed = json.loads(_clean_json_string("".join(text_parts)))
+            if not isinstance(parsed, dict) or not all(k in parsed for k in REQUIRED_KEYS):
+                raise ValueError("response JSON is missing required campaign fields")
+            print(f"[GeminiService] Campaign generated via {model_name}")
+            yield {"type": "done", "campaign": parsed,
+                   "meta": {"source": "gemini", "model": model_name, "warning": None}}
+            return
         except Exception as e:
-            print(f"[GeminiService] Error with {model_name}: {e}")
-            continue
+            msg = str(e)
+            print(f"[GeminiService] Error with {model_name}: {msg[:200]}")
+            _mark_down(model_name, msg)
+            if text_parts:
+                yield {"type": "reset"}
+            yield {"type": "status", "message": f"{model_name} unavailable, trying another model..."}
 
-    print("[GeminiService] Falling back to intelligent template generation.")
-    return generate_fallback_campaign(product_name, description, audience, platform, goal)
+    print("[GeminiService] All Gemini models failed. Falling back to template generation.")
+    yield _template_result(product_name, description, audience, platform, goal,
+                           "All Gemini models were unavailable (overloaded or quota), so a generic "
+                           "template was used. Try again in a minute.")
+
+
+def generate_marketing_campaign(product_name, description, audience, platform="Instagram",
+                                goal="Brand Awareness", tone="Bold & Premium", industry=""):
+    """Non-streaming wrapper. Returns (campaign_dict, meta)."""
+    for event in stream_marketing_campaign(product_name, description, audience, platform, goal, tone, industry):
+        if event["type"] == "done":
+            return event["campaign"], event["meta"]
+    raise RuntimeError("campaign generator ended without a result")

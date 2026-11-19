@@ -1,9 +1,29 @@
+# Render Blueprint: one web service runs Flask, which also serves the built React app.
+# Deploy: Render dashboard -> New -> Blueprint -> pick this repo.
 services:
   - type: web
     name: adspire
     runtime: python
+    plan: free
+    # frontend/dist is committed, so Render only needs the Python deps.
+    # Rebuild it locally (cd frontend && npm run build) and commit before pushing UI changes.
     buildCommand: "pip install -r backend/requirements.txt"
-    startCommand: "cd backend && gunicorn app:app --workers 2 --timeout 120"
+    # 1 process x 8 threads: the in-memory rate limiter + image queue are shared,
+    # and threads keep streaming responses from blocking other users.
+    startCommand: "cd backend && gunicorn app:app --worker-class gthread --workers 1 --threads 8 --timeout 300 --bind 0.0.0.0:$PORT"
+    healthCheckPath: /api/health
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.9
+      - key: SECRET_KEY
+        generateValue: true          # signs login tokens
+      - key: GEMINI_API_KEY
+        sync: false                  # set in the dashboard
+      - key: DATABASE_URL
+        sync: false                  # Postgres URL from Neon / Supabase (free) - required for data to persist
+      - key: ADMIN_EMAILS
+        sync: false                  # comma-separated emails that get the admin role
+      - key: HF_TOKEN
+        sync: false                  # optional
+      - key: POLLINATIONS_API_KEY
+        sync: false                  # optional: removes free-tier watermark / rate limit

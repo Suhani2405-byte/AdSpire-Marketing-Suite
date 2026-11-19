@@ -1,4 +1,5 @@
 from flask import Blueprint, request, jsonify
+from services.auth_service import feature_required, attach_optional_user
 
 budget_bp = Blueprint("budget", __name__)
 
@@ -53,19 +54,41 @@ GOAL_WEIGHTS = {
 }
 
 
+# Map UI labels / common variants onto benchmark keys
+INDUSTRY_ALIASES = {
+    "SaaS & B2B Technology": "SaaS & B2B Tech",
+    "Fashion & Apparel": "Fashion & Beauty",
+    "Fintech & Financial": "SaaS & B2B Tech",
+}
+
+GOAL_ALIASES = {
+    "Product Launch": "Product Promotion",
+    "Viral Engagement": "Engagement",
+}
+
+
 @budget_bp.route("/plan", methods=["POST"])
+@attach_optional_user
+@feature_required("budget_planner")
 def calculate_budget_plan():
     """Calculate dynamic ROI & budget allocation model reflecting duration, budget, and goal."""
     try:
-        data = request.get_json() or {}
-        total_budget = float(data.get("total_budget", 1500) or 1500)
+        data = request.get_json(silent=True) or {}
+        try:
+            total_budget = float(data.get("total_budget", 1500) or 1500)
+            duration_days = int(float(data.get("duration_days", 30) or 30))
+        except (TypeError, ValueError):
+            return jsonify({"success": False, "error": "total_budget and duration_days must be numbers."}), 400
+        if total_budget <= 0:
+            return jsonify({"success": False, "error": "total_budget must be greater than 0."}), 400
+        duration_days = max(1, min(duration_days, 365))
         goal = data.get("goal", "Sales")
         industry = data.get("industry", "Consumer Electronics & D2C")
-        duration_days = max(1, int(data.get("duration_days", 30) or 30))
 
         # Get benchmark metrics
-        benchmarks = INDUSTRY_BENCHMARKS.get(industry, INDUSTRY_BENCHMARKS["Default"])
-        weights = GOAL_WEIGHTS.get(goal, GOAL_WEIGHTS["Sales"])
+        benchmarks = INDUSTRY_BENCHMARKS.get(INDUSTRY_ALIASES.get(industry, industry), INDUSTRY_BENCHMARKS["Default"])
+        weights = GOAL_WEIGHTS.get(GOAL_ALIASES.get(goal, goal), GOAL_WEIGHTS["Sales"])
+        top_channel = max(weights, key=weights.get)
 
         # Algorithmic pacing multiplier: Sustained campaigns allow for pixel training and compounding retargeting
         # 7 days: ~0.88x (ad fatigue/rush), 30 days: ~1.0x (baseline), 60 days: ~1.12x, 90 days: ~1.22x
@@ -138,7 +161,7 @@ def calculate_budget_plan():
             "channels": channels,
             "strategic_tips": [
                 f"Pacing at ${daily_spend}/day over {duration_days} days to ensure algorithmic bid stabilization.",
-                f"Allocate highest budget ({weights.get('Meta', 35)}%) to high-intent retargeting and lookalike audiences.",
+                f"{top_channel} receives the largest share ({weights[top_channel]}%) for this goal; focus it on high-intent retargeting and lookalike audiences.",
                 f"Test creative variants in week 1 to establish baseline CTR above {benchmarks['ctr']['Meta']}%."
             ]
         }), 200

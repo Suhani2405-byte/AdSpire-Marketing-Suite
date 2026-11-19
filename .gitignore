@@ -32,3 +32,11 @@ backend/*.sqlite
 Thumbs.db
 .vscode/
 .idea/
+
+# Broken / stale virtualenvs
+backend/venv_broken/
+**/venv_broken/
+
+# OS / editor
+*.swp
+*~
