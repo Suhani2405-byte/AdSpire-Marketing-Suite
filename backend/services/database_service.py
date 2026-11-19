@@ -27,6 +27,10 @@ def _database_url():
         url = "postgresql+psycopg://" + url[len("postgres://"):]
     elif url.startswith("postgresql://"):
         url = "postgresql+psycopg://" + url[len("postgresql://"):]
+    elif not url.startswith(("sqlite", "postgresql+psycopg://")):
+        # Unrecognised format (e.g. Render internal ref) — fall back to SQLite
+        print(f"[WARNING] DATABASE_URL format not recognised, falling back to SQLite")
+        return f"sqlite:///{DB_PATH}"
     return url
 
 
